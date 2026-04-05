@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ev-blue: #003DA5; --ev-blue2: #002B7A; --ev-blue3: #001F5C;
+  --ev-gold: #F5C518; --ev-gold2: #D4A800;
+  --ev-light: #EEF3FF; --ev-mid: #C8D8FF;
+  --white: #ffffff; --gray1: #F8F9FA; --gray2: #F1F3F5; --gray3: #E9ECEF; --gray4: #CED4DA; --gray5: #868E96; --gray6: #343A40;
+  --text: #1A1A2E; --text2: #5C6380;
+  --danger: #DC2626; --danger-light: #FEE2E2;
+  --warn: #D97706; --warn-light: #FEF3C7;
+  --success: #059669; --success-light: #D1FAE5;
+  --f: 'Barlow', sans-serif; --fc: 'Barlow Condensed', sans-serif;
+  --r: 8px; --rl: 12px;
+}
+body { font-family: var(--f); color: var(--text); background: var(--gray2); min-height: 100vh; }
+.ev-header { background: var(--ev-blue); height: 52px; display: flex; align-items: stretch; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.ev-logo-zone { background: var(--ev-gold); display: flex; align-items: center; gap: 10px; padding: 0 18px; flex-shrink: 0; }
+.ev-crest { width: 32px; height: 32px; border-radius: 50%; background: var(--ev-blue); border: 2px solid var(--ev-blue2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--ev-gold); font-family: var(--fc); letter-spacing: .02em; }
+.ev-title { font-family: var(--fc); font-size: 14px; font-weight: 800; color: var(--ev-blue); letter-spacing: .04em; line-height: 1.1; }
+.ev-subtitle { font-size: 10px; font-weight: 600; color: var(--ev-blue2); opacity: .75; }
+.ev-header-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.ev-screen-name { font-family: var(--fc); font-size: 14px; font-weight: 800; letter-spacing: .1em; color: rgba(255,255,255,.6); }
+.ev-clock { padding: 0 16px; font-family: var(--fc); font-size: 15px; font-weight: 700; color: rgba(255,255,255,.8); letter-spacing: .06em; display: flex; align-items: center; }
+.live-badge { display: flex; align-items: center; gap: 6px; padding: 0 14px; font-family: var(--fc); font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); letter-spacing: .05em; border-left: 1px solid rgba(255,255,255,.15); }
+.live-dot { width: 8px; height: 8px; background: #10B981; border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+.btn { font-family: var(--fc); font-weight: 700; letter-spacing: .04em; border: none; border-radius: var(--r); cursor: pointer; transition: all .12s; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--ev-blue); color: #fff; }
+.btn-primary:hover { background: var(--ev-blue2); }
+.btn-primary:disabled { background: var(--gray4); cursor: not-allowed; transform: none; }
+.btn-gold { background: var(--ev-gold); color: var(--ev-blue); }
+.btn-gold:hover { background: var(--ev-gold2); }
+.btn-danger { background: var(--danger-light); color: var(--danger); }
+.btn-gray { background: var(--gray3); color: var(--gray6); }
+.btn-gray:hover { background: var(--gray4); }
+.pill { font-family: var(--fc); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; letter-spacing: .03em; }
+.pill-new { background: #DBEAFE; color: #1E40AF; }
+.pill-prep { background: var(--warn-light); color: #92400E; }
+.pill-ready { background: var(--success-light); color: #065F46; }
+.pill-done { background: var(--gray3); color: var(--gray5); }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ev-blue); color: #fff; padding: 10px 20px; border-radius: 99px; font-family: var(--fc); font-size: 14px; font-weight: 700; letter-spacing: .03em; border: 2px solid var(--ev-gold); opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; z-index: 999; }
+.toast.show { opacity: 1; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--gray4); border-radius: 99px; }
