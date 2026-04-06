@@ -228,36 +228,29 @@ header{background:#001F5C;border-bottom:2px solid var(--gold);height:52px;displa
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+const ARS=function(v){return '$'+Math.round(v).toLocaleString('es-AR');};
 const socket=io();
-let orders=[],delivered=0,totalTime=0;
-function tc(m){return m<8?'ok':m<18?'warn':'late';}
-function card(o){
-  const m=Math.round((Date.now()-o.ts)/60000);
-  const b={nueva:{c:'start',l:'▶  INICIAR'},preparando:{c:'ready',l:'✓  LISTA'},lista:{c:'bump',l:'↑  ENTREGADA'}};
-  const btn=b[o.status];
-  return '<div class="card '+o.status+'"><div class="card-hdr"><div><div class="card-mesa">'+o.mesa+'</div><div class="card-id">'+o.id+'</div><div class="card-mozo">'+o.mozo+'</div></div><div class="timer '+tc(m)+'">'+(m<1?'&lt;1 min':m+' min')+'</div></div><div class="card-items">'+o.items.map(i=>'<div class="ci"><span class="ciqty">'+i.qty+'x</span><span>'+i.name+'</span></div>').join('')+'</div>'+(o.nota?'<div class="cinota">⚠ '+o.nota+'</div>':'')+'<button class="cbtn '+btn.c+'" onclick="adv(\''+o.id+'\')">'+btn.l+'</button></div>';
-}
-function render(){
-  const map={nueva:['col-n','bn','cn'],preparando:['col-p','bp','cp'],lista:['col-l','bl','cl']};
-  Object.entries(map).forEach(([st,[col,badge,count]])=>{
-    const list=orders.filter(o=>o.status===st);
-    document.getElementById(col).innerHTML=list.length?list.sort((a,b)=>a.ts-b.ts).map(card).join(''):'<div class="empty">✓ Sin comandas</div>';
-    document.getElementById(badge).textContent=list.length;
-    document.getElementById(count).textContent=list.length;
-  });
-  document.getElementById('avg').textContent=delivered>0?Math.round(totalTime/delivered)+' min':'—';
-}
-function adv(id){
-  const o=orders.find(x=>x.id===id);
-  if(o&&o.status==='lista'){delivered++;totalTime+=Math.round((Date.now()-o.ts)/60000);}
-  socket.emit('avanzar_estado',{id});
-}
-socket.on('init',d=>{orders=d;render();});
-socket.on('orders_update',d=>{orders=d;render();});
-setInterval(render,20000);
-function updateClock(){const n=new Date();document.getElementById('clock').textContent=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');}
-updateClock();setInterval(updateClock,1000);
-</script></body></html>`;
+let ticket=[],mesa='',cat='Todo',ocupadas=new Set();
+const MESAS=['Mesa 1','Mesa 2','Mesa 3','Mesa 4','Mesa 5','Mesa 6','Mesa 7','Mesa 8','Barra','Para llevar'];
+const MENU=[{id:1,name:'Milanesa napolitana',e:'🍖',p:4200,c:'Platos'},{id:2,name:'Bife de chorizo',e:'🥩',p:5800,c:'Platos'},{id:3,name:'Pollo grillado',e:'🍗',p:3800,c:'Platos'},{id:4,name:'Ravioles al tuco',e:'🍝',p:3200,c:'Platos'},{id:5,name:'Cazuela de mariscos',e:'🦐',p:4800,c:'Platos'},{id:6,name:'Ensalada mixta',e:'🥗',p:1800,c:'Entradas'},{id:7,name:'Tabla de fiambres',e:'🧀',p:3400,c:'Entradas'},{id:8,name:'Empanadas x6',e:'🥟',p:2400,c:'Entradas'},{id:9,name:'Choripan',e:'🌭',p:1900,c:'Entradas'},{id:10,name:'Papas fritas',e:'🍟',p:1400,c:'Guarniciones'},{id:11,name:'Pure de papas',e:'🍲',p:1200,c:'Guarniciones'},{id:12,name:'Cerveza Quilmes 1L',e:'🍺',p:1800,c:'Bebidas'},{id:13,name:'Vino tinto copa',e:'🍷',p:1600,c:'Bebidas'},{id:14,name:'Gaseosa 500ml',e:'🥤',p:900,c:'Bebidas'},{id:15,name:'Agua mineral',e:'💧',p:700,c:'Bebidas'},{id:16,name:'Flan con crema',e:'🍮',p:1100,c:'Postres'},{id:17,name:'Helado 2 bochas',e:'🍨',p:1300,c:'Postres'},{id:18,name:'Brownie caliente',e:'🍫',p:1500,c:'Postres'}];
+const CATS=['Todo','Platos','Entradas','Guarniciones','Bebidas','Postres'];
+function init(){renderMesas();renderCats();renderGrid();updateClock();setInterval(updateClock,1000);}
+function renderMesas(){document.getElementById('mesas-bar').innerHTML=MESAS.map(function(m){return '<button class="mesa-btn'+(m===mesa?' active':'')+(ocupadas.has(m)?' ocupada':'')+'" onclick="setMesa(this.dataset.m)" data-m="'+m+'">'+m+'</button>';}).join('');}
+function setMesa(m){mesa=m;document.getElementById('ttitle').textContent=m?'COMANDA - '+m.toUpperCase():'COMANDA';renderMesas();validate();}
+function renderCats(){document.getElementById('cats').innerHTML=CATS.map(function(c){return '<div class="cat'+(c===cat?' active':'')+'" onclick="setCat(this)" data-c="'+c+'">'+c+'</div>';}).join('');}
+function setCat(el){cat=el.dataset.c;document.querySelectorAll('.cat').forEach(function(x){x.classList.remove('active');});el.classList.add('active');renderGrid();}
+function renderGrid(){var list=cat==='Todo'?MENU:MENU.filter(function(i){return i.c===cat;});document.getElementById('grid').innerHTML=list.map(function(i){return '<button class="item" onclick="addItem('+i.id+')"><span class="emoji">'+i.e+'</span><div class="iname">'+i.name+'</div><div class="iprice">'+ARS(i.p)+'</div></button>';}).join('');}
+function addItem(id){var i=MENU.find(function(x){return x.id===id;});if(!i)return;var ex=ticket.find(function(t){return t.id===id;});if(ex)ex.qty++;else ticket.push({id:i.id,name:i.name,p:i.p,qty:1});renderTicket();}
+function changeQty(id,d){var idx=ticket.findIndex(function(t){return t.id===id;});if(idx<0)return;ticket[idx].qty+=d;if(ticket[idx].qty<=0)ticket.splice(idx,1);renderTicket();}
+function renderTicket(){var el=document.getElementById('titems');if(!ticket.length){el.innerHTML='<div class="tempty">Toca un producto para agregar</div>';document.getElementById('total').textContent='$0';validate();return;}el.innerHTML=ticket.map(function(t){return '<div class="titem"><div class="qty-ctrl"><button class="qbtn" onclick="changeQty('+t.id+',-1)">-</button><span class="qnum">'+t.qty+'</span><button class="qbtn" onclick="changeQty('+t.id+',1)">+</button></div><span class="tname">'+t.name+'</span><span class="tsub">'+ARS(t.p*t.qty)+'</span></div>';}).join('');document.getElementById('total').textContent=ARS(ticket.reduce(function(s,t){return s+t.p*t.qty;},0));validate();}
+function validate(){document.getElementById('send-btn').disabled=!ticket.length||!mesa;}
+function clearTicket(){ticket=[];document.getElementById('nota').value='';renderTicket();}
+function sendOrder(){if(!ticket.length||!mesa)return;socket.emit('nueva_comanda',{mesa:mesa,mozo:document.getElementById('mozo').value||'Carlos',nota:document.getElementById('nota').value,items:ticket.map(function(t){return {id:t.id,name:t.name,qty:t.qty,price:t.p};})});ocupadas.add(mesa);clearTicket();renderMesas();showToast('Comanda enviada!');}
+socket.on('orders_update',function(o){ocupadas=new Set(o.filter(function(x){return x.status!=='entregada';}).map(function(x){return x.mesa;}));renderMesas();});
+function updateClock(){var n=new Date();document.getElementById('clock').textContent=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');}
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+init();
+</script></body></html>`));
 
 app.get('/', (req, res) => res.redirect('/caja'));
 app.get('/caja', (req, res) => res.send(CAJA_HTML));
