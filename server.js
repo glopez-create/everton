@@ -1,4 +1,4 @@
-const express = require('express'); // v2
+const express = require('express'); // v3
 const http = require('http');
 const { Server } = require('socket.io');
 const app = express();
