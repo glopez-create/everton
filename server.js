@@ -120,8 +120,7 @@ const MENU=[
 const CATS=['Todo','Platos','Entradas','Guarniciones','Bebidas','Postres'];
 function init(){renderMesas();renderCats();renderGrid();updateClock();setInterval(updateClock,1000);}
 function renderMesas(){
-  document.getElementById('mesas-bar').innerHTML=MESAS.map(m=>'<button class="mesa-btn'+(m===mesa?' active':'')+(ocupadas.has(m)?' ocupada':'')+'" onclick="setMesa(\''+m+'\')">'+m+'</button>').join('');
-  document.getElementById('mesa-sel').innerHTML='<option value="">— Mesa —</option>'+MESAS.map(m=>'<option value="'+m+'"'+(m===mesa?' selected':'')+'>'+m+'</option>').join('');
+  document.getElementById('mesas-bar').innerHTML=MESAS.map(function(m){return '<button class="mesa-btn'+(m===mesa?' active':'')+(ocupadas.has(m)?' ocupada':'')+'" onclick="setMesa(this.dataset.m)" data-m="'+m+'">'+m+'</button>';}).join('');
 }
 function setMesa(m){mesa=m;document.getElementById('ttitle').textContent=m?'COMANDA — '+m.toUpperCase():'COMANDA';document.getElementById('mesa-sel').value=m;renderMesas();validate();}
 function renderCats(){document.getElementById('cats').innerHTML=CATS.map(c=>'<div class="cat'+(c===cat?' active':'')+'" onclick="setCat(\''+c+'\',this)">'+c+'</div>').join('');}
