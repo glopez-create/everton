@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Everton - Cocina</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: #2d2d2d; border-left: 10px solid #ffc107; padding: 15px; border-radius: 5px; position: relative; }
+        .card.preparando { border-left-color: #007bff; }
+        .card.lista { border-left-color: #28a745; opacity: 0.8; }
+        .btn { background: #444; color: white; border: none; padding: 8px; cursor: pointer; width: 100%; margin-top: 10px; border-radius: 3px; }
+        h1 { border-bottom: 2px solid #28a745; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>👨‍🍳 Panel de Cocina - Everton</h1>
+    <div id="pedidos" class="grid"></div>
+
+    <script>
+        const socket = io();
+        const contenedor = document.getElementById('pedidos');
+
+        socket.on('init', render);
+        socket.on('orders_update', render);
+
+        function render(orders) {
+            contenedor.innerHTML = orders.map(o => `
+                <div class="card ${o.status}">
+                    <h3>Mesa: ${o.mesa} <small style="float:right">${o.id}</small></h3>
+                    <p><strong>Pedido:</strong> ${o.items}</p>
+                    ${o.nota ? `<p style="color:#aaa">📝 ${o.nota}</p>` : ''}
+                    <p>Estado: <strong>${o.status.toUpperCase()}</strong></p>
+                    <button class="btn" onclick="cambiar('${o.id}')">
+                        ${o.status === 'nueva' ? 'Empezar' : o.status === 'preparando' ? 'Terminar' : 'Entregado'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function cambiar(id) {
+            socket.emit('avanzar_estado', { id });
+        }
+    </script>
+</body>
+</html>
