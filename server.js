@@ -4,125 +4,145 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { 
-    cors: { origin: '*' } 
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
-// Forzamos las cabeceras de seguridad manualmente (Sin usar Helmet para evitar errores de carga)
+// Configuración de seguridad manual para que Render no bloquee las fuentes de Google
 app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; connect-src * wss:;");
-    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; connect-src * wss:; font-src * https://fonts.gstatic.com;");
     next();
 });
 
-let orders = [];
-let orderCounter = 1;
+let orders = [], orderCounter = 1;
 
-// --- HTML DE CAJA ---
-const CAJA_HTML = `
-<!DOCTYPE html>
+// --- TU DISEÑO ORIGINAL DE EVERTON (CAJA) ---
+const CAJA_HTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Everton - Caja</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@700;800&display=swap');
-        body { font-family: 'Barlow', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        header { background: #003DA5; color: #F5C518; padding: 15px; text-align: center; border-radius: 10px 10px 0 0; font-weight: 800; }
-        .container { background: white; padding: 20px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
-        button { background: #003DA5; color: white; border: none; font-weight: 800; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #002b7a; }
-        #status { text-align: center; color: #28a745; font-weight: 700; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Everton Caja</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#003DA5;--gold:#F5C518;--light:#EEF3FF;--f:Barlow,sans-serif}
+body{font-family:var(--f);background:#F1F3F5;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{background:var(--blue);height:52px;display:flex;align-items:center;padding:0 18px;color:#fff;justify-content:space-between}
+.logo{background:var(--gold);display:flex;align-items:center;gap:10px;padding:10px;height:100%;color:var(--blue);font-weight:800}
+.layout{display:flex;flex:1;overflow:hidden}
+.left{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.mesas-bar{padding:8px;background:#E9ECEF;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #ccc}
+.mb{padding:6px 12px;border-radius:6px;cursor:pointer;border:1.5px solid #CED4DA;background:#fff;font-weight:700;font-size:12px}
+.mb.active{background:var(--gold);color:var(--blue);border-color:#D4A800}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:10px;overflow-y:auto}
+.item{background:#fff;border:1.5px solid #E9ECEF;border-radius:10px;padding:10px;cursor:pointer;text-align:left}
+.item:hover{border-color:var(--blue);background:var(--light)}
+.ticket{width:300px;background:#fff;border-left:1px solid #E9ECEF;display:flex;flex-direction:column}
+.thdr{background:var(--blue);color:#fff;padding:10px;font-size:13px;font-weight:800}
+.titems{flex:1;overflow-y:auto;padding:5px}
+.titem{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee;font-size:12px}
+.sbtn{width:90%;margin:10px auto;padding:12px;background:var(--blue);color:#fff;border:none;border-radius:7px;font-weight:800;cursor:pointer}
+.sbtn:disabled{background:#ccc}
+</style>
 </head>
 <body>
-    <header>EVERTON KDS - CAJA</header>
-    <div class="container">
-        <input type="text" id="mesa" placeholder="Número de Mesa">
-        <input type="text" id="items" placeholder="Pedido (ej: 2 Hamburguesas)">
-        <input type="text" id="nota" placeholder="Nota opcional">
-        <button onclick="enviar()">ENVIAR A COCINA</button>
-        <p id="status"></p>
+<header><div class="logo">CLUB EVERTON</div><div>CAJA TACTIL</div><div id="clock">00:00</div></header>
+<div class="layout">
+    <div class="left">
+        <div class="mesas-bar" id="mesas-bar"></div>
+        <div class="grid" id="grid"></div>
     </div>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
-        const socket = io();
-        function enviar() {
-            const mesa = document.getElementById('mesa').value;
-            const items = document.getElementById('items').value;
-            const nota = document.getElementById('nota').value;
-            if(!mesa || !items) return alert("Completa mesa y pedido");
-            socket.emit('nueva_comanda', { mesa, items, nota });
-            document.getElementById('status').innerText = "✅ Pedido enviado!";
-            document.getElementById('mesa').value = '';
-            document.getElementById('items').value = '';
-            document.getElementById('nota').value = '';
-            setTimeout(() => document.getElementById('status').innerText = "", 3000);
-        }
-    </script>
-</body>
-</html>`;
+    <div class="ticket">
+        <div class="thdr" id="ttitle">COMANDA</div>
+        <div class="titems" id="titems"></div>
+        <div style="padding:10px;border-top:1px solid #eee">
+            <div style="display:flex;justify-content:space-between;font-weight:800;margin-bottom:10px"><span>TOTAL</span><span id="total">$0</span></div>
+            <button class="sbtn" id="sbtn" onclick="sendOrder()" disabled>ENVIAR A COCINA</button>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+var socket=io();
+var ticket=[],mesa="",ocupadas=new Set();
+var MENU=[{id:1,name:"Milanesa",p:4200},{id:2,name:"Bife Chorizo",p:5800},{id:12,name:"Cerveza 1L",p:1800},{id:14,name:"Gaseosa",p:900}];
+var MESAS=["Mesa 1","Mesa 2","Mesa 3","Mesa 4","Mesa 5","Barra"];
 
-// --- HTML DE COCINA ---
-const COCINA_HTML = `
-<!DOCTYPE html>
+function init(){
+    renderMesas();
+    document.getElementById("grid").innerHTML=MENU.map(x=>\`<button class="item" onclick="addItem(\${x.id})"><b>\${x.name}</b><br><span style="color:var(--blue)">$\${x.p}</span></button>\`).join("");
+    setInterval(()=>{var n=new Date();document.getElementById("clock").textContent=n.getHours()+":"+String(n.getMinutes()).padStart(2,"0")},1000);
+}
+function renderMesas(){
+    document.getElementById("mesas-bar").innerHTML=MESAS.map(m=>\`<button class="mb \${m===mesa?'active':''}" onclick="setMesa('\${m}')">\${m}</button>\`).join("");
+}
+function setMesa(m){mesa=m;document.getElementById("ttitle").textContent="COMANDA - "+m;renderMesas();validate();}
+function addItem(id){
+    var item=MENU.find(i=>i.id===id);
+    var ex=ticket.find(i=>i.id===id);
+    if(ex)ex.qty++;else ticket.push({...item,qty:1});
+    renderTicket();
+}
+function renderTicket(){
+    document.getElementById("titems").innerHTML=ticket.map(t=>\`<div class="titem"><span>\${t.qty}x \${t.name}</span><span>$\${t.p*t.qty}</span></div>\`).join("");
+    document.getElementById("total").textContent="$"+ticket.reduce((a,b)=>a+(b.p*b.qty),0);
+    validate();
+}
+function validate(){document.getElementById("sbtn").disabled=!ticket.length||!mesa;}
+function sendOrder(){
+    socket.emit("nueva_comanda",{mesa,items:ticket});
+    ticket=[];renderTicket();alert("¡Enviado!");
+}
+init();
+</script>
+</body>
+</html>\`;
+
+// --- TU DISEÑO ORIGINAL DE EVERTON (COCINA) ---
+const COCINA_HTML = \`<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Everton - Cocina</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@700;800&display=swap');
-        body { font-family: 'Barlow', sans-serif; background: #0D1117; color: white; padding: 20px; margin: 0; }
-        header { background: #003DA5; color: #F5C518; padding: 15px; border-bottom: 3px solid #F5C518; font-weight: 800; text-align: center; font-size: 24px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
-        .card { background: #161B22; border: 1px solid #30363D; border-radius: 10px; padding: 15px; border-top: 5px solid #F5C518; }
-        .card h3 { margin: 0; color: #F5C518; }
-        .btn { background: #003DA5; color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; margin-top: 15px; font-weight: 800; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Everton Cocina</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#0D1117;color:#fff}
+header{background:#003DA5;border-bottom:3px solid #F5C518;padding:15px;display:flex;justify-content:space-between;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px;padding:20px}
+.card{background:#161B22;border:1px solid #30363D;border-radius:10px;padding:15px;border-top:5px solid #F59E0B}
+.cbtn{width:100%;padding:10px;background:#10B981;color:#fff;border:none;border-radius:5px;font-weight:800;margin-top:10px;cursor:pointer}
+</style>
 </head>
 <body>
-    <header>👨‍🍳 PANEL COCINA EVERTON</header>
-    <div id="pedidos" class="grid"></div>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
-        const socket = io();
-        socket.on('init', render);
-        socket.on('orders_update', render);
-        function render(orders) {
-            document.getElementById('pedidos').innerHTML = orders.map(o => \`
-                <div class="card">
-                    <h3>Mesa: \${o.mesa}</h3>
-                    <p><strong>Pedido:</strong> \${o.items}</p>
-                    \${o.nota ? \`<p style="color:#8b949e"><em>Nota: \${o.nota}</em></p>\` : ''}
-                    <button class="btn" onclick="listo('\${o.id}')">ENTREGAR</button>
-                </div>
-            \`).join('');
-        }
-        function listo(id) { socket.emit('avanzar_estado', { id }); }
-    </script>
+<header><div>EVERTON - COCINA</div><div id="clock">00:00</div></header>
+<div id="pedidos" class="grid"></div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+var socket=io();
+socket.on("init",render);
+socket.on("orders_update",render);
+function render(orders){
+    document.getElementById("pedidos").innerHTML=orders.map(o=>\`
+        <div class="card">
+            <h3 style="color:#F5C518">Mesa: \${o.mesa}</h3>
+            <div style="margin:10px 0">\${o.items.map(i=>\`<div>\${i.qty}x \${i.name}</div>\`).join("")}</div>
+            <button class="cbtn" onclick="listo('\${o.id}')">ENTREGADO</button>
+        </div>
+    \`).join("");
+}
+function listo(id){socket.emit("avanzar_estado",{id});}
+</script>
 </body>
-</html>`;
+</html>\`;
 
-// --- RUTAS ---
 app.get('/', (req, res) => res.redirect('/caja'));
 app.get('/caja', (req, res) => res.send(CAJA_HTML));
 app.get('/cocina', (req, res) => res.send(COCINA_HTML));
 
-// --- SOCKETS ---
 io.on('connection', (socket) => {
     socket.emit('init', orders);
     socket.on('nueva_comanda', (data) => {
-        const order = {
-            id: "#EV-" + orderCounter++,
-            mesa: data.mesa,
-            items: data.items,
-            nota: data.nota || "",
-            status: "nueva",
-            ts: Date.now()
-        };
+        const order = { id: "#EV-"+(orderCounter++), mesa: data.mesa, items: data.items, ts: Date.now() };
         orders.push(order);
         io.emit('orders_update', orders);
     });
@@ -133,4 +153,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log('Servidor OK puerto ' + PORT));
+server.listen(PORT, '0.0.0.0', () => console.log('Everton Online'));
