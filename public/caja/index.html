@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Everton - Caja</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 500px; background: white; padding: 20px; border-radius: 10px; shadow: 0 2px 10px rgba(0,0,0,0.1); margin: auto; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #28a745; color: white; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { background: #218838; }
+        h2 { text-align: center; color: #1a5c2e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🍀 Nueva Comanda</h2>
+        <input type="text" id="mesa" placeholder="N° de Mesa (ej: 5)">
+        <input type="text" id="items" placeholder="Pedido (ej: 2 G-13, 1 Amnesia)">
+        <input type="text" id="nota" placeholder="Nota adicional (opcional)">
+        <button onclick="enviarPedido()">Enviar a Cocina</button>
+        <p id="status" style="text-align:center; color: green;"></p>
+    </div>
+
+    <script>
+        const socket = io();
+        function enviarPedido() {
+            const mesa = document.getElementById('mesa').value;
+            const items = document.getElementById('items').value;
+            const nota = document.getElementById('nota').value;
+
+            if(!mesa || !items) return alert("Completá mesa y pedido");
+
+            socket.emit('nueva_comanda', { mesa, items, nota });
+            
+            document.getElementById('status').innerText = "✅ ¡Pedido enviado!";
+            document.getElementById('mesa').value = '';
+            document.getElementById('items').value = '';
+            document.getElementById('nota').value = '';
+            setTimeout(() => document.getElementById('status').innerText = "", 3000);
+        }
+    </script>
+</body>
+</html>
