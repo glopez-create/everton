@@ -10,6 +10,12 @@ const io = new Server(server, {
 
 let orders = [], orderCounter = 1;
 
+// Desactivar bloqueos de seguridad para que los botones funcionen
+app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline';");
+    next();
+});
+
 const CAJA_HTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -42,7 +48,6 @@ header{background:var(--blue);height:52px;display:flex;align-items:stretch}
 .item{background:#fff;border:1.5px solid #E9ECEF;border-radius:10px;padding:10px;cursor:pointer;text-align:left}
 .item:hover{border-color:var(--blue);background:var(--light)}
 .item:active{transform:scale(.96)}
-.ie{font-size:24px;display:block;margin-bottom:4px}
 .in{font-size:11px;font-weight:600;color:#1A1A2E;line-height:1.3;margin-bottom:3px}
 .ip{font-size:14px;font-weight:800;color:var(--blue)}
 .ticket{width:290px;flex-shrink:0;background:#fff;border-left:1px solid #E9ECEF;display:flex;flex-direction:column}
@@ -96,34 +101,36 @@ header{background:var(--blue);height:52px;display:flex;align-items:stretch}
 </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/socket.io/socket.io.js"><\/script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 var ARS=function(v){return "$"+Math.round(v).toLocaleString("es-AR");};
 var socket=io();
 var ticket=[],mesa="",cat="Todo",ocupadas=new Set();
 var MESAS=["Mesa 1","Mesa 2","Mesa 3","Mesa 4","Mesa 5","Mesa 6","Mesa 7","Mesa 8","Barra","Para llevar"];
 var MENU=[
-{id:1,name:"Milanesa napolitana",e:"X",p:4200,c:"Platos"},
-{id:2,name:"Bife de chorizo",e:"X",p:5800,c:"Platos"},
-{id:3,name:"Pollo grillado",e:"X",p:3800,c:"Platos"},
-{id:4,name:"Ravioles al tuco",e:"X",p:3200,c:"Platos"},
-{id:5,name:"Cazuela de mariscos",e:"X",p:4800,c:"Platos"},
-{id:6,name:"Ensalada mixta",e:"X",p:1800,c:"Entradas"},
-{id:7,name:"Tabla de fiambres",e:"X",p:3400,c:"Entradas"},
-{id:8,name:"Empanadas x6",e:"X",p:2400,c:"Entradas"},
-{id:9,name:"Chorip\u00e1n",e:"X",p:1900,c:"Entradas"},
-{id:10,name:"Papas fritas",e:"X",p:1400,c:"Guarniciones"},
-{id:11,name:"Pur\u00e9 de papas",e:"X",p:1200,c:"Guarniciones"},
-{id:12,name:"Cerveza Quilmes 1L",e:"X",p:1800,c:"Bebidas"},
-{id:13,name:"Vino tinto copa",e:"X",p:1600,c:"Bebidas"},
-{id:14,name:"Gaseosa 500ml",e:"X",p:900,c:"Bebidas"},
-{id:15,name:"Agua mineral",e:"X",p:700,c:"Bebidas"},
-{id:16,name:"Flan con crema",e:"X",p:1100,c:"Postres"},
-{id:17,name:"Helado 2 bochas",e:"X",p:1300,c:"Postres"},
-{id:18,name:"Brownie caliente",e:"X",p:1500,c:"Postres"}
+{id:1,name:"Milanesa napolitana",p:4200,c:"Platos"},
+{id:2,name:"Bife de chorizo",p:5800,c:"Platos"},
+{id:3,name:"Pollo grillado",p:3800,c:"Platos"},
+{id:4,name:"Ravioles al tuco",p:3200,c:"Platos"},
+{id:5,name:"Cazuela de mariscos",p:4800,c:"Platos"},
+{id:6,name:"Ensalada mixta",p:1800,c:"Entradas"},
+{id:7,name:"Tabla de fiambres",p:3400,c:"Entradas"},
+{id:8,name:"Empanadas x6",p:2400,c:"Entradas"},
+{id:9,name:"Choripán",p:1900,c:"Entradas"},
+{id:10,name:"Papas fritas",p:1400,c:"Guarniciones"},
+{id:11,name:"Puré de papas",p:1200,c:"Guarniciones"},
+{id:12,name:"Cerveza Quilmes 1L",p:1800,c:"Bebidas"},
+{id:13,name:"Vino tinto copa",p:1600,c:"Bebidas"},
+{id:14,name:"Gaseosa 500ml",p:900,c:"Bebidas"},
+{id:15,name:"Agua mineral",p:700,c:"Bebidas"},
+{id:16,name:"Flan con crema",p:1100,c:"Postres"},
+{id:17,name:"Helado 2 bochas",p:1300,c:"Postres"},
+{id:18,name:"Brownie caliente",p:1500,c:"Postres"}
 ];
 var CATS=["Todo","Platos","Entradas","Guarniciones","Bebidas","Postres"];
+
 function init(){renderMesas();renderCats();renderGrid();updateClock();setInterval(updateClock,1000);}
+
 function renderMesas(){
   var h="";
   for(var i=0;i<MESAS.length;i++){var m=MESAS[i];h+="<button class='mb"+(m===mesa?" active":"")+(ocupadas.has(m)?" ocupada":"")+"' onclick='setMesa(\""+m+"\")'>"+m+"</button>";}
@@ -132,15 +139,20 @@ function renderMesas(){
   for(var i=0;i<MESAS.length;i++){s+="<option value='"+MESAS[i]+"'"+(MESAS[i]===mesa?" selected":"")+">"+MESAS[i]+"</option>";}
   document.getElementById("msel").innerHTML=s;
 }
+
 function setMesa(m){mesa=m;document.getElementById("ttitle").textContent=m?"COMANDA - "+m.toUpperCase():"COMANDA";document.getElementById("msel").value=m;renderMesas();validate();}
+
 function renderCats(){var h="";for(var i=0;i<CATS.length;i++){h+="<div class='cat"+(CATS[i]===cat?" active":"")+"' onclick='setCat(\""+CATS[i]+"\",this)'>"+CATS[i]+"</div>";}document.getElementById("cats").innerHTML=h;}
+
 function setCat(c,el){cat=c;var all=document.querySelectorAll(".cat");for(var i=0;i<all.length;i++)all[i].classList.remove("active");el.classList.add("active");renderGrid();}
+
 function renderGrid(){
   var list=cat==="Todo"?MENU:MENU.filter(function(i){return i.c===cat;});
   var h="";
   for(var i=0;i<list.length;i++){var x=list[i];h+="<button class='item' onclick='addItem("+x.id+")'><div class='in'>"+x.name+"</div><div class='ip'>"+ARS(x.p)+"</div></button>";}
   document.getElementById("grid").innerHTML=h;
 }
+
 function addItem(id){
   var item=null;for(var i=0;i<MENU.length;i++){if(MENU[i].id===id){item=MENU[i];break;}}
   if(!item)return;
@@ -148,10 +160,12 @@ function addItem(id){
   if(ex)ex.qty++;else ticket.push({id:item.id,name:item.name,p:item.p,qty:1});
   renderTicket();
 }
+
 function changeQty(id,d){
   var idx=-1;for(var i=0;i<ticket.length;i++){if(ticket[i].id===id){idx=i;break;}}
   if(idx<0)return;ticket[idx].qty+=d;if(ticket[idx].qty<=0)ticket.splice(idx,1);renderTicket();
 }
+
 function renderTicket(){
   var el=document.getElementById("titems");
   if(!ticket.length){el.innerHTML="<div class='tempty'>Toca un producto</div>";document.getElementById("total").textContent="$0";validate();return;}
@@ -162,19 +176,24 @@ function renderTicket(){
   document.getElementById("total").textContent=ARS(total);
   validate();
 }
+
 function validate(){document.getElementById("sbtn").disabled=!ticket.length||!mesa;}
 function clearTicket(){ticket=[];document.getElementById("nota").value="";renderTicket();}
+
 function sendOrder(){
   if(!ticket.length||!mesa)return;
   var items=[];for(var i=0;i<ticket.length;i++)items.push({id:ticket[i].id,name:ticket[i].name,qty:ticket[i].qty,price:ticket[i].p});
   socket.emit("nueva_comanda",{mesa:mesa,mozo:document.getElementById("mozo").value||"Carlos",nota:document.getElementById("nota").value,items:items});
   ocupadas.add(mesa);clearTicket();renderMesas();showToast("Comanda enviada!");
 }
+
 socket.on("orders_update",function(o){ocupadas=new Set(o.filter(function(x){return x.status!=="entregada";}).map(function(x){return x.mesa;}));renderMesas();});
+
 function updateClock(){var n=new Date();document.getElementById("clock").textContent=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");}
 function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
-init();
-<\/script>
+
+window.onload = init;
+</script>
 </body>
 </html>`;
 
@@ -213,28 +232,23 @@ header{background:#001F5C;border-bottom:2px solid var(--gold);height:52px;displa
 .col-title{font-size:12px;font-weight:800;letter-spacing:.08em}
 .col-count{margin-left:auto;background:rgba(255,255,255,.1);border-radius:99px;font-size:11px;font-weight:800;padding:2px 9px}
 .col-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
-.card{background:#161B22;border-radius:99px;overflow:hidden;border:1px solid #30363D}
+.card{background:#161B22;border-radius:9px;overflow:hidden;border:1px solid #30363D;margin-bottom:8px}
 .card.nueva{border-top:3px solid #3B82F6}
 .card.preparando{border-top:3px solid #F59E0B}
 .card.lista{border-top:3px solid #10B981}
 .card-hdr{padding:9px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #30363D}
 .card-mesa{font-size:14px;font-weight:800;color:#fff}
-.card-id{font-size:10px;color:#8B949E}
-.card-mozo{font-size:10px;color:#58A6FF;margin-top:1px}
-.timer{font-size:12px;font-weight:800;padding:3px 9px;border-radius:99px}
-.timer.ok{background:#0D2E1F;color:#3FB950}
-.timer.warn{background:#271700;color:#F0883E}
-.timer.late{background:#2D0C0C;color:#FF7B72}
+.card-mozo{font-size:10px;color:#58A6FF}
+.timer{font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;background:#0D2E1F;color:#3FB950}
 .card-items{padding:9px 11px}
-.ci{display:flex;gap:7px;align-items:baseline;padding:3px 0;border-bottom:1px solid #21262D;font-size:12px}
-.ci:last-child{border-bottom:none}
-.ciqty{font-size:15px;font-weight:800;color:var(--gold);min-width:22px}
-.cinota{background:#271700;color:#F0883E;font-size:10px;padding:3px 9px;margin:3px 11px 7px;border-radius:5px;border-left:2px solid #F0883E}
+.ci{display:flex;gap:7px;padding:3px 0;font-size:12px;border-bottom:1px solid #21262D}
+.ciqty{font-weight:800;color:var(--gold)}
+.cinota{background:#271700;color:#F0883E;font-size:10px;padding:4px;margin:5px;border-left:2px solid #F0883E}
 .cbtn{width:100%;padding:10px;font-size:12px;font-weight:800;border:none;cursor:pointer}
 .cbtn.start{background:#1D4ED8;color:#fff}
 .cbtn.ready{background:#059669;color:#fff}
 .cbtn.bump{background:#21262D;color:#8B949E}
-.empty{text-align:center;padding:32px 10px;color:#30363D;font-size:12px;font-weight:700}
+.empty{text-align:center;padding:20px;color:#30363D;font-size:11px}
 </style>
 </head>
 <body>
@@ -250,78 +264,70 @@ header{background:#001F5C;border-bottom:2px solid var(--gold);height:52px;displa
 <div class="stat"><div class="sdot" style="background:#10B981"></div><div class="sv" id="cl">0</div><div class="sl">LISTAS</div></div>
 </div>
 <div class="cols">
-<div class="col"><div class="col-hdr nueva"><div class="sdot" style="background:#3B82F6"></div><span class="col-title" style="color:#58A6FF">NUEVAS</span><span class="col-count" id="bn">0</span></div><div class="col-body" id="col-n"></div></div>
-<div class="col"><div class="col-hdr preparando"><div class="sdot" style="background:#F59E0B"></div><span class="col-title" style="color:#F0883E">EN PREPARACION</span><span class="col-count" id="bp">0</span></div><div class="col-body" id="col-p"></div></div>
-<div class="col"><div class="col-hdr lista"><div class="sdot" style="background:#10B981"></div><span class="col-title" style="color:#3FB950">LISTAS</span><span class="col-count" id="bl">0</span></div><div class="col-body" id="col-l"></div></div>
+<div class="col"><div class="col-hdr nueva"><span class="col-title" style="color:#58A6FF">NUEVAS</span><span class="col-count" id="bn">0</span></div><div class="col-body" id="col-n"></div></div>
+<div class="col"><div class="col-hdr preparando"><span class="col-title" style="color:#F0883E">EN PREPARACION</span><span class="col-count" id="bp">0</span></div><div class="col-body" id="col-p"></div></div>
+<div class="col"><div class="col-hdr lista"><span class="col-title" style="color:#3FB950">LISTAS</span><span class="col-count" id="bl">0</span></div><div class="col-body" id="col-l"></div></div>
 </div>
-<script src="/socket.io/socket.io.js"><\/script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 var socket=io();
-var orders=[],delivered=0,totalTime=0;
-function tc(m){return m<8?"ok":m<18?"warn":"late";}
-function makeCard(o){
-  var m=Math.round((Date.now()-o.ts)/60000);
-  var bl={nueva:"start",preparando:"ready",lista:"bump"};
-  var ll={nueva:"INICIAR",preparando:"MARCAR LISTA",lista:"ENTREGADA"};
-  var items="";
-  for(var i=0;i<o.items.length;i++)items+="<div class='ci'><span class='ciqty'>"+o.items[i].qty+"x</span><span>"+o.items[i].name+"</span></div>";
-  return "<div class='card "+o.status+"'><div class='card-hdr'><div><div class='card-mesa'>"+o.mesa+"</div><div class='card-id'>"+o.id+"</div><div class='card-mozo'>"+o.mozo+"</div></div><div class='timer "+tc(m)+"'>"+(m<1?"<1min":m+"min")+"</div></div><div class='card-items'>"+items+"</div>"+(o.nota?"<div class='cinota'>"+o.nota+"</div>":"")+"<button class='cbtn "+bl[o.status]+"' onclick='adv(\""+o.id+"\")'>"+ll[o.status]+"</button></div>";
-}
+var orders=[];
+
 function render(){
-  var cols={nueva:["col-n","bn","cn"],preparando:["col-p","bp","cp"],lista:["col-l","bl","cl"]};
   var sts=["nueva","preparando","lista"];
-  for(var s=0;s<sts.length;s++){
-    var st=sts[s];var ids=cols[st];
+  var cols={nueva:"col-n",preparando:"col-p",lista:"col-l"};
+  var counts={nueva:"bn",preparando:"bp",lista:"bl"};
+  var mainCounts={nueva:"cn",preparando:"cp",lista:"cl"};
+
+  sts.forEach(function(st){
     var list=orders.filter(function(o){return o.status===st;});
-    list.sort(function(a,b){return a.ts-b.ts;});
     var h=list.length?"":"<div class='empty'>Sin comandas</div>";
-    for(var i=0;i<list.length;i++)h+=makeCard(list[i]);
-    document.getElementById(ids[0]).innerHTML=h;
-    document.getElementById(ids[1]).textContent=list.length;
-    document.getElementById(ids[2]).textContent=list.length;
-  }
+    list.forEach(function(o){
+      var m=Math.round((Date.now()-o.ts)/60000);
+      var btnLabel={nueva:"INICIAR",preparando:"LISTA",lista:"ENTREGADA"}[o.status];
+      var btnClass={nueva:"start",preparando:"ready",lista:"bump"}[o.status];
+      var itemsH="";
+      o.items.forEach(function(i){itemsH+="<div class='ci'><span class='ciqty'>"+i.qty+"x</span><span>"+i.name+"</span></div>";});
+      
+      h+="<div class='card "+o.status+"'><div class='card-hdr'><div><div class='card-mesa'>"+o.mesa+"</div><div class='card-mozo'>"+o.mozo+"</div></div><div class='timer'>"+m+"m</div></div><div class='card-items'>"+itemsH+"</div>"+(o.nota?"<div class='cinota'>"+o.nota+"</div>":"")+"<button class='cbtn "+btnClass+"' onclick='adv(\""+o.id+"\")'>"+btnLabel+"</button></div>";
+    });
+    document.getElementById(cols[st]).innerHTML=h;
+    document.getElementById(counts[st]).textContent=list.length;
+    document.getElementById(mainCounts[st]).textContent=list.length;
+  });
 }
-function adv(id){
-  var o=null;for(var i=0;i<orders.length;i++){if(orders[i].id===id){o=orders[i];break;}}
-  if(o&&o.status==="lista"){delivered++;totalTime+=Math.round((Date.now()-o.ts)/60000);}
-  socket.emit("avanzar_estado",{id:id});
-}
+
+function adv(id){socket.emit("avanzar_estado",{id:id});}
 socket.on("init",function(d){orders=d;render();});
 socket.on("orders_update",function(d){orders=d;render();});
-setInterval(render,20000);
+setInterval(render,30000);
 function updateClock(){var n=new Date();document.getElementById("clock").textContent=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");}
 updateClock();setInterval(updateClock,1000);
-<\/script>
+</script>
 </body>
 </html>`;
 
-app.get("/", function(req,res){res.redirect("/caja");});
-app.get("/caja", function(req,res){res.send(CAJA_HTML);});
-app.get("/cocina", function(req,res){res.send(COCINA_HTML);});
-app.get("/api/orders", function(req,res){res.json(orders);});
+app.get("/", (req,res)=>res.redirect("/caja"));
+app.get("/caja", (req,res)=>res.send(CAJA_HTML));
+app.get("/cocina", (req,res)=>res.send(COCINA_HTML));
 
-io.on("connection", function(socket){
-  socket.emit("init", orders);
-  socket.on("nueva_comanda", function(data){
-    var order={id:"#EV-"+String(orderCounter++).padStart(3,"0"),mesa:data.mesa,mozo:data.mozo||"Carlos",items:data.items,status:"nueva",ts:Date.now(),nota:data.nota||""};
-    orders.push(order);
-    io.emit("orders_update",orders);
-  });
-  socket.on("avanzar_estado", function(data){
-    var order=null;for(var i=0;i<orders.length;i++){if(orders[i].id===data.id){order=orders[i];break;}}
-    if(!order)return;
-    var next={nueva:"preparando",preparando:"lista",lista:"entregada"};
-    order.status=next[order.status]||order.status;
-    if(order.status==="entregada"){
-      setTimeout(function(){orders=orders.filter(function(o){return o.id!==data.id;});io.emit("orders_update",orders);},3000);
-    }
-    io.emit("orders_update",orders);
-  });
-  socket.on("cancelar", function(data){orders=orders.filter(function(o){return o.id!==data.id;});io.emit("orders_update",orders);});
+io.on("connection", (socket) => {
+    socket.emit("init", orders);
+    socket.on("nueva_comanda", (data) => {
+        const order = { ...data, id: "EV-"+(orderCounter++), ts: Date.now(), status: "nueva" };
+        orders.push(order);
+        io.emit("orders_update", orders);
+    });
+    socket.on("avanzar_estado", (data) => {
+        const o = orders.find(x => x.id === data.id);
+        if(o){
+            const next = { nueva: "preparando", preparando: "lista", lista: "entregada" };
+            o.status = next[o.status];
+            if(o.status === "entregada") orders = orders.filter(x => x.id !== data.id);
+            io.emit("orders_update", orders);
+        }
+    });
 });
 
-// USAR EL PUERTO DINÁMICO DE RENDER
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, "0.0.0.0", function(){
-    console.log("Servidor Everton KDS iniciado en puerto " + PORT);
-});
+server.listen(PORT, "0.0.0.0", () => console.log("Puerto: "+PORT));
