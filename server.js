@@ -1,176 +1,193 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const server = require('http').Server(app);
+const io = require('socket.io')(server, { cors: { origin: "*" } });
 
-let orders = [], orderCounter = 1;
+let orders = [];
+let orderCounter = 1;
 
+// --- DISEÑO DE LA CAJA ---
 const CAJA_HTML = `
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Caja Everton</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Everton Caja</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f0f0; }
-        header { background: #003DA5; color: white; padding: 10px; display: flex; justify-content: space-between; }
-        .main { display: flex; height: 90vh; }
-        .menu { flex: 2; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; overflow-y: auto; }
-        .btn-item { background: white; border: 1px solid #ccc; padding: 15px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: bold; }
-        .sidebar { flex: 1; background: white; border-left: 2px solid #ccc; padding: 10px; display: flex; flex-direction: column; }
-        .mesas { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; background: #ddd; padding: 5px; }
-        .btn-mesa { padding: 8px; font-size: 11px; cursor: pointer; }
-        .btn-mesa.active { background: #F5C518; font-weight: bold; }
-        .t-item { border-bottom: 1px solid #eee; padding: 5px; display: flex; justify-content: space-between; }
-        .btn-send { background: #003DA5; color: white; padding: 15px; border: none; font-weight: bold; cursor: pointer; margin-top: auto; }
-        .btn-send:disabled { background: #ccc; }
+        body { font-family: sans-serif; margin: 0; background: #f4f7f6; display: flex; flex-direction: column; height: 100vh; }
+        header { background: #003DA5; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #F5C518; }
+        .contenedor { display: flex; flex: 1; overflow: hidden; }
+        .productos { flex: 2; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; overflow-y: auto; }
+        .card { background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        .card:hover { border-color: #003DA5; background: #eef3ff; }
+        .lateral { width: 350px; background: white; border-left: 2px solid #ddd; display: flex; flex-direction: column; padding: 20px; }
+        .mesas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .btn-mesa { padding: 10px; border: 1px solid #ccc; background: white; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .btn-mesa.active { background: #F5C518; color: #003DA5; border-color: #003DA5; }
+        .ticket { flex: 1; border-top: 2px solid #eee; padding-top: 15px; overflow-y: auto; }
+        .t-linea { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .btn-enviar { background: #003DA5; color: white; padding: 18px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .btn-enviar:disabled { background: #ccc; cursor: not-allowed; }
+        .total { font-size: 20px; font-weight: bold; color: #003DA5; margin-top: 10px; border-top: 2px solid #003DA5; padding-top: 10px; }
     </style>
 </head>
 <body>
     <header>
-        <span>EVERTON - CAJA</span>
-        <span id="clock">00:00</span>
+        <div style="font-weight: 800; font-size: 20px;">CLUB EVERTON</div>
+        <div id="reloj" style="font-weight: bold; font-size: 18px;">00:00</div>
     </header>
-    <div class="mesas" id="cont-mesas"></div>
-    <div class="main">
-        <div class="menu" id="cont-menu"></div>
-        <div class="sidebar">
-            <h3 id="m-sel">Mesa: -</h3>
-            <div id="lista-pedido" style="flex:1"></div>
-            <button id="btn-enviar" class="btn-send" onclick="enviarPedido()" disabled>ENVIAR A COCINA</button>
+    <div class="contenedor">
+        <div class="productos" id="grid-productos"></div>
+        <div class="lateral">
+            <h3 style="margin-top:0">Mesa: <span id="mesa-num">-</span></h3>
+            <div class="mesas" id="cont-mesas"></div>
+            <div class="ticket" id="lista-pedido"></div>
+            <div class="total">Total: $<span id="total-monto">0</span></div>
+            <button class="btn-enviar" id="btn-enviar" onclick="enviar()" disabled>ENVIAR A COCINA</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         var socket = io();
-        var miMesa = '';
-        var miPedido = [];
+        var mesaSel = "";
+        var pedido = [];
 
-        var listaMesas = ['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5', 'Barra'];
-        var listaProductos = [
-            {id:1, n:'Milanesa', p:4500},
-            {id:2, n:'Hamburguesa', p:3500},
-            {id:3, n:'Papas Fritas', p:2000},
-            {id:4, n:'Gaseosa', p:1200},
-            {id:5, n:'Cerveza', p:2500}
+        var productos = [
+            {n:"Milanesa Napo", p:4500}, {n:"Bife Chorizo", p:5800},
+            {n:"Hamburguesa", p:3500}, {n:"Papas Fritas", p:2200},
+            {n:"Ensalada Mixta", p:1800}, {n:"Cerveza 1L", p:2500},
+            {n:"Gaseosa", p:1200}, {n:"Agua Mineral", p:900}
         ];
 
-        function iniciar() {
-            var hM = '';
-            listaMesas.forEach(function(m) {
-                hM += '<button class="btn-mesa" onclick="selMesa(\''+m+'\', this)">'+m+'</button>';
-            });
-            document.getElementById('cont-mesas').innerHTML = hM;
+        function init() {
+            var hM = "";
+            for(var i=1; i<=8; i++) {
+                hM += '<button class="btn-mesa" onclick="selMesa(\'Mesa '+i+'\', this)">Mesa '+i+'</button>';
+            }
+            hM += '<button class="btn-mesa" onclick="selMesa(\'Barra\', this)">Barra</button>';
+            document.getElementById("cont-mesas").innerHTML = hM;
 
-            var hP = '';
-            listaProductos.forEach(function(p) {
-                hP += '<div class="btn-item" onclick="agregar(\''+p.n+'\','+p.p+')">'+p.n+'<br>$'+p.p+'</div>';
+            var hP = "";
+            productos.forEach(function(p) {
+                hP += '<div class="card" onclick="add(\''+p.n+'\','+p.p+')">'+p.n+'<br><span style="color:#003DA5">$'+p.p+'</span></div>';
             });
-            document.getElementById('cont-menu').innerHTML = hP;
+            document.getElementById("grid-productos").innerHTML = hP;
 
             setInterval(function() {
                 var d = new Date();
-                document.getElementById('clock').innerText = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+                document.getElementById("reloj").innerText = d.getHours() + ":" + String(d.getMinutes()).padStart(2,"0");
             }, 1000);
         }
 
         function selMesa(m, el) {
-            miMesa = m;
-            document.getElementById('m-sel').innerText = 'Mesa: ' + m;
-            var btns = document.getElementsByClassName('btn-mesa');
-            for(var i=0; i<btns.length; i++) btns[i].classList.remove('active');
-            el.classList.add('active');
+            mesaSel = m;
+            document.getElementById("mesa-num").innerText = m;
+            var bs = document.querySelectorAll(".btn-mesa");
+            bs.forEach(b => b.classList.remove("active"));
+            el.classList.add("active");
             validar();
         }
 
-        function agregar(nombre, precio) {
-            miPedido.push({n: nombre, p: precio});
-            dibujarPedido();
+        function add(n, p) {
+            pedido.push({nombre: n, precio: p});
+            renderTicket();
         }
 
-        function dibujarPedido() {
-            var h = '';
-            var total = 0;
-            miPedido.forEach(function(item) {
-                h += '<div class="t-item"><span>'+item.n+'</span> <b>$'+item.p+'</b></div>';
-                total += item.p;
+        function renderTicket() {
+            var h = "";
+            var t = 0;
+            pedido.forEach(function(item) {
+                h += '<div class="t-linea"><span>' + item.nombre + '</span> <b>$' + item.precio + '</b></div>';
+                t += item.precio;
             });
-            document.getElementById('lista-pedido').innerHTML = h + '<hr><h4>Total: $'+total+'</h4>';
+            document.getElementById("lista-pedido").innerHTML = h;
+            document.getElementById("total-monto").innerText = t;
             validar();
         }
 
         function validar() {
-            document.getElementById('btn-enviar').disabled = (miMesa == '' || miPedido.length == 0);
+            document.getElementById("btn-enviar").disabled = (mesaSel === "" || pedido.length === 0);
         }
 
-        function enviarPedido() {
-            socket.emit('nueva_comanda', { mesa: miMesa, items: miPedido });
-            alert('Pedido enviado a cocina');
-            miPedido = [];
-            miMesa = '';
-            document.getElementById('m-sel').innerText = 'Mesa: -';
-            document.getElementById('lista-pedido').innerHTML = '';
-            var btns = document.getElementsByClassName('btn-mesa');
-            for(var i=0; i<btns.length; i++) btns[i].classList.remove('active');
+        function enviar() {
+            socket.emit("nueva_comanda", { mesa: mesaSel, items: pedido });
+            alert("¡Pedido enviado!");
+            pedido = [];
+            mesaSel = "";
+            document.getElementById("mesa-num").innerText = "-";
+            document.getElementById("lista-pedido").innerHTML = "";
+            document.getElementById("total-monto").innerText = "0";
+            var bs = document.querySelectorAll(".btn-mesa");
+            bs.forEach(b => b.classList.remove("active"));
             validar();
         }
 
-        window.onload = iniciar;
+        window.onload = init;
     </script>
 </body>
 </html>
 `;
 
+// --- DISEÑO DE LA COCINA ---
 const COCINA_HTML = `
 <!DOCTYPE html>
 <html>
-<head><title>Cocina</title><meta charset="utf-8"></head>
-<body style="background:#222; color:white; font-family:sans-serif;">
-    <h1>COCINA EVERTON</h1>
-    <div id="pedidos" style="display:flex; gap:20px; flex-wrap:wrap;"></div>
+<head>
+    <meta charset="utf-8">
+    <title>Everton Cocina</title>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .comanda { background: #2c2c2c; border-radius: 10px; border-top: 8px solid #F5C518; padding: 15px; }
+        .comanda h2 { margin: 0 0 10px 0; color: #F5C518; }
+        .items { list-style: none; padding: 0; margin-bottom: 15px; }
+        .items li { padding: 8px 0; border-bottom: 1px solid #444; font-size: 18px; }
+        .btn-listo { background: #F5C518; color: #003DA5; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>COMANDAS PENDIENTES</h1>
+    <div class="grid" id="pedidos"></div>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         var socket = io();
-        socket.on('init', function(data) { render(data); });
-        socket.on('orders_update', function(data) { render(data); });
-
-        function render(orders) {
-            var h = '';
-            orders.forEach(function(o) {
-                var items = '';
-                o.items.forEach(function(i) { items += '<li>' + i.n + '</li>'; });
-                h += '<div style="background:#444; padding:15px; border-radius:10px; min-width:200px;">' +
-                     '<h2>' + o.mesa + '</h2><ul>' + items + '</ul>' +
-                     '<button onclick="listo(\''+o.id+'\')" style="width:100%; padding:10px; background:#F5C518; border:none; font-weight:bold; cursor:pointer;">LISTO / ENTREGADO</button>' +
-                     '</div>';
+        socket.on("init", render);
+        socket.on("orders_update", render);
+        function render(data) {
+            var h = "";
+            data.forEach(function(o) {
+                var li = "";
+                o.items.forEach(i => { li += "<li>" + i.nombre + "</li>"; });
+                h += '<div class="comanda"><h2>' + o.mesa + '</h2><ul class="items">' + li + '</ul>' +
+                     '<button class="btn-listo" onclick="listo(\''+o.id+'\')">MARCAR COMO LISTO</button></div>';
             });
-            document.getElementById('pedidos').innerHTML = h;
+            document.getElementById("pedidos").innerHTML = h;
         }
-        function listo(id) { socket.emit('avanzar_estado', {id: id}); }
+        function listo(id) { socket.emit("listo", id); }
     </script>
 </body>
 </html>
 `;
 
-app.get('/', (req, res) => res.redirect('/caja'));
-app.get('/caja', (req, res) => res.send(CAJA_HTML));
-app.get('/cocina', (req, res) => res.send(COCINA_HTML));
+// --- LOGICA DEL SERVIDOR ---
+app.get("/", (req, res) => res.redirect("/caja"));
+app.get("/caja", (req, res) => res.send(CAJA_HTML));
+app.get("/cocina", (req, res) => res.send(COCINA_HTML));
 
-io.on('connection', (socket) => {
-    socket.emit('init', orders);
-    socket.on('nueva_comanda', (data) => {
-        const order = { ...data, id: "EV-" + (orderCounter++), status: "nueva" };
-        orders.push(order);
-        io.emit('orders_update', orders);
+io.on("connection", (socket) => {
+    socket.emit("init", orders);
+    socket.on("nueva_comanda", (data) => {
+        const comanda = { ...data, id: "EV-" + orderCounter++ };
+        orders.push(comanda);
+        io.emit("orders_update", orders);
     });
-    socket.on('avanzar_estado', (data) => {
-        orders = orders.filter(x => x.id !== data.id);
-        io.emit('orders_update', orders);
+    socket.on("listo", (id) => {
+        orders = orders.filter(o => o.id !== id);
+        io.emit("orders_update", orders);
     });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, "0.0.0.0", () => console.log("Servidor iniciado"));
+server.listen(PORT, "0.0.0.0", () => console.log("Servidor Online"));
