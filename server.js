@@ -3,7 +3,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { 
+    cors: { origin: '*' },
+    transports: ['websocket', 'polling'] 
+});
 
 let orders = [], orderCounter = 1;
 
@@ -210,7 +213,7 @@ header{background:#001F5C;border-bottom:2px solid var(--gold);height:52px;displa
 .col-title{font-size:12px;font-weight:800;letter-spacing:.08em}
 .col-count{margin-left:auto;background:rgba(255,255,255,.1);border-radius:99px;font-size:11px;font-weight:800;padding:2px 9px}
 .col-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
-.card{background:#161B22;border-radius:9px;overflow:hidden;border:1px solid #30363D}
+.card{background:#161B22;border-radius:99px;overflow:hidden;border:1px solid #30363D}
 .card.nueva{border-top:3px solid #3B82F6}
 .card.preparando{border-top:3px solid #F59E0B}
 .card.lista{border-top:3px solid #10B981}
@@ -302,7 +305,6 @@ io.on("connection", function(socket){
   socket.on("nueva_comanda", function(data){
     var order={id:"#EV-"+String(orderCounter++).padStart(3,"0"),mesa:data.mesa,mozo:data.mozo||"Carlos",items:data.items,status:"nueva",ts:Date.now(),nota:data.nota||""};
     orders.push(order);
-    io.emit("comanda_nueva",order);
     io.emit("orders_update",orders);
   });
   socket.on("avanzar_estado", function(data){
@@ -318,5 +320,8 @@ io.on("connection", function(socket){
   socket.on("cancelar", function(data){orders=orders.filter(function(o){return o.id!==data.id;});io.emit("orders_update",orders);});
 });
 
-var PORT=process.env.PORT||3000;
-server.listen(PORT,"0.0.0.0",function(){console.log("Everton KDS puerto "+PORT);});
+// USAR EL PUERTO DINÁMICO DE RENDER
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, "0.0.0.0", function(){
+    console.log("Servidor Everton KDS iniciado en puerto " + PORT);
+});
